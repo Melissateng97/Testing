@@ -1,0 +1,252 @@
+---
+title: "Untitled"
+author: "Melissa"
+date: "2023-03-30"
+output: word_document
+---
+```{r libraryloading, include=FALSE}
+library(ggplot2)
+library(GGally)
+library(gridExtra)
+library(cowplot)
+library(lmtest)
+```
+
+
+```{r InputData_testResult, include=FALSE}
+library(readr)
+Test <- read_csv("TestResult.csv")
+Test$Sample=as.factor(Test$Sample)
+str(Lab)
+```
+
+
+# Comparision between lab test and sensor reading. 
+
+The 10 collected soil sensor data was the average of 30 days reading from 12 September to 12 October 2023. The CV of the sensor parameters was less than 20% during the month. This part, correlation and multiple linear regression model selection between lab test and sensor reading would be done. 
+
+# Correlation between Lab and Sensor Test
+```{r correlation_labVSsensor, echo=FALSE}
+ggpairs(Lab[c("TN_lab","OrganicC_lab","ExtP_lab", "K_lab","Ca_lab", "Mg_lab","pH_lab","EC_lab","N_sensor","P_sensor","K_sensor", "EC_Sensor","MC_Sensor","pH_Sensor")])
+```
+
+According to the figure above, it was surprised that moisture reading was well correlated with  extractable P, K , Ca, and Mg (ppm) by the lab test methods. The K_sensor was high correlated with K and Mg lab based method. The EC_sensor and EC_lab was moderate correlated while pH is not correlated between the sensor and lab method.
+
+Besides that, 1:5 water suspension EC method was high correlated with lab based method extractable P and moderate correlated with K, Ca, Mg and 1:2.5 water suspension pH method 
+
+## Lab test regression model selection by sensor reading 
+
+Sensor parameter such as NPK, moisture, EC and pH would be the explanatory variable for the targeted lab test parameters. AIC and Fishers'test were used for model selection. 
+
+### Total Nitrogen Regression Model
+
+```{r N_Lab, echo=FALSE}
+library(leaps)
+
+Lab.N_1=lm(TN_lab~ N_sensor+P_sensor+K_sensor+EC_Sensor+MC_Sensor+pH_Sensor, data=Lab)
+AIC_Lab.N_1_a=step(Lab.N_1,direction="both")
+
+Lab.N_2=lm(TN_lab~ P_sensor + K_sensor + EC_Sensor + MC_Sensor, data=Lab)
+drop1(Lab.N_2,.~.,test="F")
+summary(Lab.N_2)
+```
+
+**TN_lab multiple linear model:**
+
+*TN_lab (%) = -0.4499832 intercept - 0.2829920 P_sensor + 0.1159933 K_sensor - 0.0007084 + EC_Sensor - 0.0143778 MC_Sensor + 0.01661*
+
+Adjusted R-squared:  **0.9274**
+
+
+**Model Assumption Check**
+
+1) Normality test
+```{r normality_N, echo=FALSE, message=FALSE, warning=FALSE}
+  par(mfrow=c(2,2))
+  plot(Lab.N_2)
+
+```
+
+```{r normalityTest_N, echo=FALSE}
+  ks.test(Lab.N_2$res,"pnorm",mean=0,sd=sd(Lab.N_2$res))
+  shapiro.test(Lab.N_2$residuals)
+```
+Kolmogorov-Smirnov test and Shapiro-Wilk normality test proved that the model is normal. 
+
+2. Homoscedasticity Test
+
+```{r HomoscedasticityTest_N, echo=FALSE, message=FALSE, warning=FALSE}
+
+bptest(Lab.N_2)
+
+```
+The test of homoscedasticity by Breusch-Pagan test proved that the residuals are homogeneous because it accept Ho.
+
+
+### Extractable Phosphorus Regression Model
+
+```{r P_sensor, echo=FALSE}
+Lab.P_1=lm(ExtP_lab~ N_sensor+P_sensor+K_sensor+EC_Sensor+MC_Sensor+pH_Sensor, data=Lab)
+AIC_Lab.P_1_a=step(Lab.P_1,direction="both")
+
+Lab.P_2=lm(ExtP_lab ~ N_sensor + P_sensor + K_sensor + EC_Sensor + pH_Sensor, data=Lab)
+drop1(Lab.P_2,.~.,test="F")
+
+Lab.P_3=lm(ExtP_lab ~ N_sensor + K_sensor + EC_Sensor + pH_Sensor, data=Lab)
+drop1(Lab.P_3,.~.,test="F")
+
+Lab.P_4=lm(ExtP_lab ~ K_sensor + EC_Sensor + pH_Sensor, data=Lab)
+drop1(Lab.P_4,.~.,test="F")
+
+Lab.P_5=lm(ExtP_lab ~ K_sensor + EC_Sensor , data=Lab)
+drop1(Lab.P_5,.~.,test="F")
+
+Lab.P_6=lm(ExtP_lab ~ EC_Sensor , data=Lab)
+```
+
+No linear regression model is detected. 
+
+### Potassium Regression Model
+
+```{r K_sensor, echo=FALSE}
+Lab.K_1=lm(K_lab~ N_sensor+P_sensor+K_sensor+EC_Sensor+MC_Sensor+pH_Sensor, data=Lab)
+AIC_Lab.K_1_a=step(Lab.K_1,direction="both")
+
+Lab.K_2=lm (K_lab ~ N_sensor + K_sensor + MC_Sensor, data=Lab)
+drop1(Lab.K_2,.~.,test="F")
+
+Lab.K_3=lm (K_lab ~ K_sensor + MC_Sensor, data=Lab)
+drop1(Lab.K_3,.~.,test="F")
+
+Lab.K_3=lm (K_lab ~ MC_Sensor, data=Lab)
+summary(Lab.K_3)
+```
+
+**K_lab single linear regression model:** 
+
+*K (ppm) = -13.1571 intercept + 0.8134 MC_Sensor + 5.539*
+
+Adjusted R-squared: **0.7869**
+
+**Model Assumption Check**
+
+1) Normality test
+```{r normality_a, echo=FALSE, message=FALSE, warning=FALSE}
+  par(mfrow=c(2,2))
+  plot(Lab.K_3)
+
+```
+
+```{r normalityTest_a, echo=FALSE}
+  ks.test(Lab.K_3$res,"pnorm",mean=0,sd=sd(Lab.K_3$res))
+  shapiro.test(Lab.K_3$residuals)
+```
+Kolmogorov-Smirnov test and Shapiro-Wilk normality test proved that the model is normal because accept Ho. 
+
+2. Homoscedasticity Test
+
+```{r HomoscedasticityTest_K, echo=FALSE, message=FALSE, warning=FALSE}
+
+bptest(Lab.K_3)
+
+```
+The test of homoscedasticity by Breusch-Pagan test proved that the residuals are homogeneous because it accept Ho.
+
+###Calcium Regression Model
+
+```{r K_sensor, echo=FALSE}
+Lab.Ca_1=lm(Ca_lab~ N_sensor+P_sensor+K_sensor+EC_Sensor+MC_Sensor+pH_Sensor, data=Lab)
+AIC_Lab.Ca_1_a=step(Lab.Ca_1,direction="both")
+
+Lab.Ca_2=lm (Ca_lab ~ N_sensor + P_sensor + K_sensor + EC_Sensor + MC_Sensor, data=Lab)
+drop1(Lab.Ca_2,.~.,test="F")
+
+Lab.Ca_3=lm (Ca_lab ~  P_sensor + K_sensor + EC_Sensor + MC_Sensor, data=Lab)
+drop1(Lab.Ca_3,.~.,test="F")
+      
+Lab.Ca_4=lm (Ca_lab ~  P_sensor + K_sensor + EC_Sensor, data=Lab)
+drop1(Lab.Ca_4,.~.,test="F")
+      
+summary(Lab.Ca_4)
+```
+
+**Ca_lab multiple linear regression model:** 
+
+*Ca (ppm) = 139.10076 intercept + 161.30844 P_sensor -65.66591 K_sensor + 0.15190 EC_Sensor  *
+
+Adjusted R-squared:  **0.9283**
+
+**Model Assumption Check**
+
+1) Normality test
+```{r normality_a, echo=FALSE, message=FALSE, warning=FALSE}
+  par(mfrow=c(2,2))
+  plot(Lab.Ca_4)
+
+```
+
+```{r normalityTest_a, echo=FALSE}
+  ks.test(Lab.Ca_4$res,"pnorm",mean=0,sd=sd(Lab.Ca_4$res))
+  shapiro.test(Lab.Ca_4$residuals)
+```
+Kolmogorov-Smirnov test and Shapiro-Wilk normality test proved that the model is normal because accept Ho. 
+
+2. Homoscedasticity Test
+
+```{r HomoscedasticityTest_Ca, echo=FALSE, message=FALSE, warning=FALSE}
+
+bptest(Lab.Ca_4)
+
+```
+The test of homoscedasticity by Breusch-Pagan test proved that the residuals are homogeneous because it accept Ho. 
+
+
+##Magnisium  Regression Model
+```{r K_sensor, echo=FALSE}
+Lab.Mg_1=lm(Mg_lab~ N_sensor+P_sensor+K_sensor+EC_Sensor+MC_Sensor+pH_Sensor, data=Lab)
+AIC_Lab.Mg_1_a=step(Lab.Mg_1,direction="both")
+
+Lab.Mg_2=lm (Mg_lab ~ N_sensor + MC_Sensor, data=Lab)
+drop1(Lab.Mg_2,.~.,test="F")
+
+Lab.Mg_3=lm (Mg_lab ~ MC_Sensor, data=Lab)
+summary(Lab.Mg_3)
+```
+
+**Mg_lab multiple linear regression model:**
+
+*Mg (ppm) = -52.8102 intercept + 2.0259 MC_Sensor*
+
+Adjusted R-squared:  **0.8895** 
+
+**Model Assumption Check**
+
+1) Normality test
+```{r normality_a, echo=FALSE, message=FALSE, warning=FALSE}
+  par(mfrow=c(2,2))
+  plot(Lab.Mg_3)
+
+```
+
+```{r normalityTest_a, echo=FALSE}
+  ks.test(Lab.Mg_3$res,"pnorm",mean=0,sd=sd(Lab.Mg_3$res))
+  shapiro.test(Lab.Mg_3$residuals)
+```
+Kolmogorov-Smirnov test and Shapiro-Wilk normality test proved that the model is normal because accept Ho. 
+
+2.Homoscedasticity Test
+
+```{r HomoscedasticityTest_Mg, echo=FALSE, message=FALSE, warning=FALSE}
+
+bptest(Lab.Mg_3)
+
+```
+The test of homoscedasticity by Breusch-Pagan test proved that the residuals are homogeneous because it accept Ho. 
+
+
+# Conclusion 
+Base on the 10 samples in Peninsular Malaysia, linear regression model of total N, K, Ca and Mg estimation can be done by the sensor. From the correlation test, soil moisture by sensor maybe moderate to high correlated with K, Ca, Mg. Therefore, the sensor has the possibility to detect the total nitrogen, K, Ca and Mg by the linear regression model . 
+
+# Research improvement
+1. Either resampling or soil treatment to collected soil is suggested to prove the linear regression model of total nitrogen, K, Ca and Mg. 
+
